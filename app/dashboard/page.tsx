@@ -1,21 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuth();
   const router = useRouter();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      router.push("/login");
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
 
   const handleCaptureReceipt = () => {
     router.push("dashboard/receipts/capture");
@@ -30,58 +19,59 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Welcome to Xpense</h1>
-        <Button onClick={handleSignOut} variant="outline">
-          Sign Out
-        </Button>
-      </div>
-      <div className="mt-8">
-        <p className="text-gray-600">
-          Welcome back, {user?.email}! Start managing your expenses efficiently.
-        </p>
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          <div className="rounded-lg border p-6 hover:border-primary/50 transition-colors">
-            <h2 className="text-xl font-semibold">Capture Receipt</h2>
-            <p className="mt-2 text-gray-600">
-              Quickly capture and process your receipts
-            </p>
-            <Button
-              className="mt-4"
-              variant="secondary"
-              onClick={handleCaptureReceipt}
-            >
-              Capture Now
-            </Button>
-          </div>
-          <div className="rounded-lg border p-6 hover:border-primary/50 transition-colors">
-            <h2 className="text-xl font-semibold">View Receipts</h2>
-            <p className="mt-2 text-gray-600">
-              Browse and manage your captured receipts
-            </p>
-            <Button
-              className="mt-4"
-              variant="secondary"
-              onClick={handleViewReceipts}
-            >
-              View Gallery
-            </Button>
-          </div>
-          <div className="rounded-lg border p-6 hover:border-primary/50 transition-colors">
-            <h2 className="text-xl font-semibold">Generate Report</h2>
-            <p className="mt-2 text-gray-600">
-              Create expense reports for reimbursement
-            </p>
-            <Button
-              className="mt-4"
-              variant="secondary"
-              onClick={handleCreateReport}
-            >
-              Create Report
-            </Button>
-          </div>
+    <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+        <div
+          onClick={handleCaptureReceipt}
+          className="group cursor-pointer rounded-xl bg-card p-6 shadow-sm hover:shadow transition-all"
+        >
+          <h2 className="text-xl font-semibold group-hover:text-primary">
+            Capture Receipt
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            Quickly capture and process your receipts
+          </p>
+          <Button className="mt-4" variant="secondary">
+            Capture Now
+          </Button>
         </div>
+
+        <div
+          onClick={handleViewReceipts}
+          className="group cursor-pointer rounded-xl bg-card p-6 shadow-sm hover:shadow transition-all"
+        >
+          <h2 className="text-xl font-semibold group-hover:text-primary">
+            View Receipts
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            Browse and manage your captured receipts
+          </p>
+          <Button className="mt-4" variant="secondary">
+            View Gallery
+          </Button>
+        </div>
+
+        <div
+          onClick={handleCreateReport}
+          className="group cursor-pointer rounded-xl bg-card p-6 shadow-sm hover:shadow transition-all"
+        >
+          <h2 className="text-xl font-semibold group-hover:text-primary">
+            Generate Report
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            Create expense reports for reimbursement
+          </p>
+          <Button className="mt-4" variant="secondary">
+            Create Report
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 rounded-xl bg-card p-6">
+        <h2 className="text-2xl font-semibold mb-4">Recent Activity</h2>
+        <p className="text-muted-foreground">
+          Your recent receipts and reports will appear here.
+        </p>
       </div>
     </div>
   );
