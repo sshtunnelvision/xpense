@@ -31,6 +31,13 @@ model Receipt {
   date      DateTime @default(now())
   category  String?
   notes     String?
+  company   String?
+  time      String?
+  items     String?
+  subtotal  Float?
+  tax       Float?
+  tip       Float?
+  total     Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id])

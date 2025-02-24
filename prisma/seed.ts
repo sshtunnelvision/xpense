@@ -22,6 +22,13 @@ async function main() {
       date: new Date('2024-02-20'),
       category: 'Food & Dining',
       notes: 'Lunch with team',
+      company: 'Chipotle',
+      time: '12:30',
+      items: 'Burrito Bowl, Chips & Guac',
+      subtotal: 38.99,
+      tax: 2.50,
+      tip: 1.50,
+      total: 42.99
     },
   });
 
@@ -33,18 +40,32 @@ async function main() {
       date: new Date('2024-02-22'),
       category: 'Transportation',
       notes: 'Uber to airport',
+      company: 'Uber',
+      time: '08:45',
+      items: 'UberX Ride',
+      subtotal: 120.00,
+      tax: 5.50,
+      tip: 0.00,
+      total: 125.50
     },
   });
 
   // Create a test report
-  await prisma.report.create({
+  const report = await prisma.report.create({
     data: {
       userId: user.id,
       startDate: new Date('2024-02-01'),
       endDate: new Date('2024-02-29'),
       format: 'pdf',
       status: 'completed',
-      url: '/reports/test/report1.pdf',
+    },
+  });
+
+  // Update the report with its URL using its actual ID
+  await prisma.report.update({
+    where: { id: report.id },
+    data: {
+      url: `/api/reports/${user.id}/${report.id}/report.pdf`,
     },
   });
 

@@ -81,7 +81,19 @@ export async function POST(request: Request) {
           content: [
             {
               type: "text",
-              text: "Please analyze this receipt and extract the following information in JSON format with these exact field names: amount (as a number), date (in ISO format YYYY-MM-DD), category (one of: food, transport, entertainment, shopping, utilities, other), and notes (provide a brief business purpose based on the items/establishment, e.g., 'Team lunch meeting', 'Office supplies purchase', 'Client dinner at Restaurant Name', etc.). If you can't determine a field, use null.",
+              text: "Please analyze this receipt and extract the following information in JSON format with these exact field names:\n" +
+                "- company (name of the business/establishment)\n" +
+                "- date (in ISO format YYYY-MM-DD)\n" +
+                "- time (in 24-hour format HH:MM)\n" +
+                "- items (comma-separated list of main items purchased)\n" +
+                "- subtotal (number, before tax and tip)\n" +
+                "- tax (number, tax amount)\n" +
+                "- tip (number, if present)\n" +
+                "- total (number, final amount including tax and tip)\n" +
+                "- amount (same as total, included for backward compatibility)\n" +
+                "- category (one of: food, transport, entertainment, shopping, utilities, other)\n" +
+                "- notes (provide a brief business purpose based on the items/establishment, e.g., 'Team lunch meeting at Restaurant Name', 'Office supplies from Store Name', etc.)\n\n" +
+                "If you can't determine a field, use null.",
             },
             {
               type: "image_url",
@@ -92,7 +104,7 @@ export async function POST(request: Request) {
           ],
         },
       ],
-      max_tokens: 500,
+      max_tokens: 1000,
     });
 
     if (!response.choices[0]?.message?.content) {
@@ -106,10 +118,9 @@ export async function POST(request: Request) {
     let parsedData;
     try {
       parsedData = JSON.parse(content);
-      // Map fields if they don't match our schema
-      if ('total_amount' in parsedData && !('amount' in parsedData)) {
-        parsedData.amount = parsedData.total_amount;
-        delete parsedData.total_amount;
+      // Ensure amount is set to total for backward compatibility
+      if (!parsedData.amount && parsedData.total) {
+        parsedData.amount = parsedData.total;
       }
       console.log('Parsed Data:', parsedData);
     } catch {
@@ -117,10 +128,9 @@ export async function POST(request: Request) {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsedData = JSON.parse(jsonMatch[0]);
-        // Map fields here too
-        if ('total_amount' in parsedData && !('amount' in parsedData)) {
-          parsedData.amount = parsedData.total_amount;
-          delete parsedData.total_amount;
+        // Ensure amount is set to total for backward compatibility
+        if (!parsedData.amount && parsedData.total) {
+          parsedData.amount = parsedData.total;
         }
       } else {
         throw new Error("Failed to parse OpenAI response");

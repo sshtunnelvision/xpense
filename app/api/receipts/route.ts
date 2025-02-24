@@ -4,17 +4,18 @@ import { jwtVerify } from 'jose';
 import { prisma } from '@/lib/prisma';
 
 async function getUserFromToken() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth-token')?.value;
-
-  if (!token) {
-    return null;
-  }
-
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return null;
+    }
+
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
     const { payload } = await jwtVerify(token, secret);
-    return payload.userId as string;
+    return payload.sub as string;
+
   } catch (error) {
     console.error('Token verification error:', error);
     return null;
@@ -53,7 +54,20 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json();
-    const { imageUrl, amount, date, category, notes } = data;
+    const {
+      imageUrl,
+      amount,
+      date,
+      category,
+      notes,
+      company,
+      time,
+      items,
+      subtotal,
+      tax,
+      tip,
+      total
+    } = data;
 
     const receipt = await prisma.receipt.create({
       data: {
@@ -63,6 +77,13 @@ export async function POST(request: Request) {
         date: date ? new Date(date) : new Date(),
         category,
         notes,
+        company,
+        time,
+        items,
+        subtotal: subtotal ? parseFloat(subtotal) : null,
+        tax: tax ? parseFloat(tax) : null,
+        tip: tip ? parseFloat(tip) : null,
+        total: total ? parseFloat(total) : null,
       },
     });
 

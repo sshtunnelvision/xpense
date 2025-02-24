@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         where: { id: report.id },
         data: {
           status: "completed",
-          url: `/reports/${userId}/${report.id}.${format}`,
+          url: `/api/reports/${userId}/${report.id}/${format === 'csv' ? 'report.csv' : `report.${format}`}`,
         },
       });
     }, 5000);

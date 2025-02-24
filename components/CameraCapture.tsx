@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Camera, X, Upload } from "lucide-react";
+import { Camera, X, Upload, RotateCw } from "lucide-react";
 
 interface CameraCaptureProps {
   onCapture: (file: File) => void;
@@ -17,10 +17,13 @@ export default function CameraCapture({
   const [showCamera, setShowCamera] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debug, setDebug] = useState<string>("");
+  const [facingMode, setFacingMode] = useState<"environment" | "user">(
+    "environment"
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const cleanup = () => {
     if (streamRef.current) {
@@ -50,12 +53,10 @@ export default function CameraCapture({
         setError(null);
         setDebug("Starting camera initialization...");
 
-        // Check if getUserMedia is supported
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error("Camera API is not supported in this browser");
         }
 
-        // Log available devices
         const devices = await navigator.mediaDevices.enumerateDevices();
         if (!mounted) return;
         setDebug((prev) => `${prev}\nFound devices: ${devices.length}`);
@@ -70,20 +71,19 @@ export default function CameraCapture({
           throw new Error("No camera found on this device");
         }
 
-        // Request camera access with simpler settings
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: {
+            facingMode: facingMode,
+          },
           audio: false,
         });
 
         if (!mounted || !videoRef.current) return;
 
-        // Set up video element
         const video = videoRef.current;
         video.srcObject = stream;
         streamRef.current = stream;
 
-        // Wait for metadata to be loaded
         await new Promise<void>((resolve) => {
           if (!video) return;
           video.onloadedmetadata = () => resolve();
@@ -92,7 +92,6 @@ export default function CameraCapture({
         if (!mounted) return;
         setDebug((prev) => `${prev}\nVideo metadata loaded`);
 
-        // Start playing
         await video.play();
 
         if (!mounted) return;
@@ -117,11 +116,11 @@ export default function CameraCapture({
     return () => {
       mounted = false;
     };
-  }, [isInitializing]);
+  }, [isInitializing, facingMode]);
 
   const startCamera = () => {
-    setShowCamera(true); // Show video element first
-    setIsInitializing(true); // Then start initialization
+    setShowCamera(true);
+    setIsInitializing(true);
   };
 
   const stopCamera = () => {
@@ -130,17 +129,21 @@ export default function CameraCapture({
     setError(null);
   };
 
+  const switchCamera = () => {
+    cleanup();
+    setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
+    setIsInitializing(true);
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check if the file is an image
     if (!file.type.startsWith("image/")) {
       setError("Please select an image file");
       return;
     }
 
-    // Check file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       setError("Image size should be less than 10MB");
       return;
@@ -149,9 +152,7 @@ export default function CameraCapture({
     onCapture(file);
 
     // Reset the input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    event.target.value = "";
   };
 
   const captureImage = () => {
@@ -170,14 +171,17 @@ export default function CameraCapture({
     }
 
     try {
-      // Set canvas dimensions to match video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
-      // Draw the video frame to the canvas
+      // If using front camera, flip the image horizontally
+      if (facingMode === "user") {
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+      }
+
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Convert canvas to blob
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -209,7 +213,7 @@ export default function CameraCapture({
             <Button
               onClick={startCamera}
               disabled={disabled || isInitializing}
-              className="flex-1"
+              className="flex-1 hidden md:flex"
               size="lg"
               type="button"
             >
@@ -217,24 +221,25 @@ export default function CameraCapture({
               {isInitializing ? "Initializing Camera..." : "Open Camera"}
             </Button>
             <Button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => uploadInputRef.current?.click()}
               disabled={disabled}
               variant="outline"
               size="lg"
               type="button"
+              className="flex-1"
             >
               <Upload className="mr-2 h-4 w-4" />
-              Upload
+              <span className="md:hidden">Capture/Upload</span>
+              <span className="hidden md:inline">Upload</span>
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-              capture="environment"
-            />
           </div>
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
           {error && (
             <div className="text-sm text-red-500 text-center">{error}</div>
           )}
@@ -251,10 +256,20 @@ export default function CameraCapture({
             autoPlay
             playsInline
             muted
-            className="h-auto w-full rounded-lg"
+            className={`h-auto w-full rounded-lg ${
+              facingMode === "user" ? "scale-x-[-1]" : ""
+            }`}
           />
           <canvas ref={canvasRef} className="hidden" />
           <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-4">
+            <Button
+              onClick={switchCamera}
+              size="lg"
+              variant="outline"
+              type="button"
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
             <Button
               onClick={captureImage}
               size="lg"

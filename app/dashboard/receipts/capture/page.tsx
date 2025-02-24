@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,29 +15,41 @@ interface ReceiptData {
   date: string;
   category: string;
   notes: string;
+  company: string;
+  time: string;
+  items: string;
+  subtotal: string;
+  tax: string;
+  tip: string;
+  total: string;
 }
 
 export default function CaptureReceiptPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<ReceiptData>({
     imageUrl: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
     category: "",
     notes: "",
+    company: "",
+    time: "",
+    items: "",
+    subtotal: "",
+    tax: "",
+    tip: "",
+    total: "",
   });
 
   const handleImageCapture = async (file: File) => {
     try {
-      // Create form data for file upload
       const formData = new FormData();
       formData.append("file", file);
 
-      // Upload the file
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -51,13 +62,15 @@ export default function CaptureReceiptPage() {
       const { url } = await response.json();
       setImageUrl(url);
       setFormData((prev) => ({ ...prev, imageUrl: url }));
+      // Remove auto-trigger of analysis
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload image");
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!imageUrl) return;
+  const handleAnalyze = async (url?: string) => {
+    const imageToAnalyze = url || imageUrl;
+    if (!imageToAnalyze) return;
 
     setAnalyzing(true);
     setError(null);
@@ -68,7 +81,7 @@ export default function CaptureReceiptPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ imageUrl }),
+        body: JSON.stringify({ imageUrl: imageToAnalyze }),
       });
 
       if (!response.ok) {
@@ -83,7 +96,17 @@ export default function CaptureReceiptPage() {
         date: data.date || prev.date,
         category: data.category || prev.category,
         notes: data.notes || prev.notes,
+        company: data.company || prev.company,
+        time: data.time || prev.time,
+        items: data.items || prev.items,
+        subtotal: data.subtotal?.toString() || prev.subtotal,
+        tax: data.tax?.toString() || prev.tax,
+        tip: data.tip?.toString() || prev.tip,
+        total: data.total?.toString() || prev.total,
       }));
+
+      // Show the form after successful analysis
+      setShowForm(true);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to analyze receipt"
@@ -111,7 +134,24 @@ export default function CaptureReceiptPage() {
         throw new Error("Failed to save receipt");
       }
 
-      router.push("/dashboard/receipts");
+      // Reset the form for a new receipt
+      setImageUrl(null);
+      setShowForm(false);
+      setFormData({
+        imageUrl: "",
+        amount: "",
+        date: new Date().toISOString().split("T")[0],
+        category: "",
+        notes: "",
+        company: "",
+        time: "",
+        items: "",
+        subtotal: "",
+        tax: "",
+        tip: "",
+        total: "",
+      });
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save receipt");
     } finally {
@@ -122,19 +162,12 @@ export default function CaptureReceiptPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-8">
           <h1 className="text-3xl font-bold">Capture Receipt</h1>
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/receipts")}
-          >
-            Cancel
-          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <Label>Receipt Image</Label>
             <CameraCapture onCapture={handleImageCapture} />
             {imageUrl && (
               <div className="mt-2">
@@ -147,96 +180,201 @@ export default function CaptureReceiptPage() {
                     sizes="(max-width: 768px) 100vw, 50vw"
                   />
                 </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="mt-2 w-full"
-                  onClick={handleAnalyze}
-                  disabled={analyzing}
-                >
+                <div className="mt-4 flex justify-center">
                   {analyzing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Analyzing Receipt...
-                    </>
+                    <div className="text-center">
+                      <Loader2 className="w-6 h-6 animate-spin inline-block" />
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Analyzing your receipt...
+                      </p>
+                    </div>
                   ) : (
-                    "Analyze Receipt"
+                    <Button
+                      type="button"
+                      onClick={() => handleAnalyze()}
+                      disabled={analyzing}
+                    >
+                      Analyze Receipt
+                    </Button>
                   )}
-                </Button>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, amount: e.target.value }))
-                }
-                placeholder="Enter amount"
-                required
-              />
-            </div>
+          {showForm && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="company">Company/Business Name</Label>
+                <Input
+                  id="company"
+                  value={formData.company}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      company: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter business name"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, date: e.target.value }))
-                }
-                required
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="date">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, date: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <Input
-                id="category"
-                value={formData.category}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, category: e.target.value }))
-                }
-                placeholder="Enter category"
-              />
-            </div>
+                <div>
+                  <Label htmlFor="time">Time</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, time: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
 
-            <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, notes: e.target.value }))
-                }
-                placeholder="Add any notes about this receipt"
-              />
+              <div>
+                <Label htmlFor="items">Items</Label>
+                <Textarea
+                  id="items"
+                  value={formData.items}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, items: e.target.value }))
+                  }
+                  placeholder="List of items purchased"
+                />
+              </div>
+
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="subtotal">Subtotal</Label>
+                  <Input
+                    id="subtotal"
+                    type="number"
+                    step="0.01"
+                    value={formData.subtotal}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        subtotal: e.target.value,
+                      }))
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="tax">Tax</Label>
+                  <Input
+                    id="tax"
+                    type="number"
+                    step="0.01"
+                    value={formData.tax}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        tax: e.target.value,
+                      }))
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="tip">Tip</Label>
+                  <Input
+                    id="tip"
+                    type="number"
+                    step="0.01"
+                    value={formData.tip}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        tip: e.target.value,
+                      }))
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="total">Total</Label>
+                  <Input
+                    id="total"
+                    type="number"
+                    step="0.01"
+                    value={formData.total}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        total: e.target.value,
+                        amount: e.target.value, // Keep amount in sync with total
+                      }))
+                    }
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      category: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter category"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, notes: e.target.value }))
+                  }
+                  placeholder="Add any notes about this receipt"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading || !imageUrl}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save and Add Another"
+                )}
+              </Button>
             </div>
-          </div>
+          )}
 
           {error && <div className="text-red-500 text-sm">{error}</div>}
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={loading || !imageUrl}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save Receipt"
-            )}
-          </Button>
         </form>
       </div>
     </div>
